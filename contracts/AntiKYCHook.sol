@@ -18,10 +18,10 @@ interface IKycValidity {
 }
 
 /**
- * Only KYC'ed people can trade on the V4 hook'ed pool.
+ * Only NonKYC'ed people can trade on the V4 hook'ed pool.
  * Caveat: Relies on external oracle for info on an address's KYC status.
  */
-contract KYCSwaps is BaseHook, Ownable {
+contract NonKYCSwaps is BaseHook, Ownable {
     IKycValidity public kycValidity;
     address private _preKycValidity;
     uint256 private _setKycValidityReqTimestamp;
@@ -33,25 +33,12 @@ contract KYCSwaps is BaseHook, Ownable {
         kycValidity = IKycValidity(_kycValidity);
     }
 
-    modifier onlyPermitKYC() {
+    modifier onlyPermitNonKYC() {
         require(
-            kycValidity.hasValidToken(tx.origin),
-            "Swaps available for valid KYC token holders"
+            !kycValidity.hasValidToken(tx.origin),
+            "Swaps available for non-KYC token holders"
         );
         _;
-    }
-
-    /// Sorta timelock
-    function setKycValidity(address _kycValidity) external onlyOwner {
-        if (
-            block.timestamp - _setKycValidityReqTimestamp >= 7 days &&
-            _kycValidity == _preKycValidity
-        ) {
-            kycValidity = IKycValidity(_kycValidity);
-        } else {
-            _preKycValidity = _kycValidity;
-            _setKycValidityReqTimestamp = block.timestamp;
-        }
     }
 
     function getHooksCalls() public pure override returns (Hooks.Calls memory) {
@@ -72,7 +59,7 @@ contract KYCSwaps is BaseHook, Ownable {
         address,
         IPoolManager.PoolKey calldata,
         IPoolManager.ModifyPositionParams calldata
-    ) external view override poolManagerOnly onlyPermitKYC returns (bytes4) {
+    ) external view override poolManagerOnly onlyPermitNonKYC returns (bytes4) {
         return BaseHook.beforeModifyPosition.selector;
     }
 
@@ -80,7 +67,7 @@ contract KYCSwaps is BaseHook, Ownable {
         address,
         IPoolManager.PoolKey calldata,
         IPoolManager.SwapParams calldata
-    ) external view override poolManagerOnly onlyPermitKYC returns (bytes4) {
+    ) external view override poolManagerOnly onlyPermitNonKYC returns (bytes4) {
         return BaseHook.beforeSwap.selector;
     }
 }
